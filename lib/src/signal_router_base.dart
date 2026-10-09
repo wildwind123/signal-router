@@ -74,7 +74,7 @@ class SignalRouter<T> {
       nV = "$nV?$q";
     }
 
-    slvRouteRaw(nV);
+    slvRouteRaw.set(nV);
     // print("-----------push route $nV");
     if (pushPageHooks != null && pushPageHooks!.isNotEmpty) {
       for (var i = 0; i < pushPageHooks!.length; i++) {
