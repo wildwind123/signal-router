@@ -1,0 +1,27 @@
+{
+  "name": "signal_router",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "username": "vscode",
+      "installZsh": false
+    }
+  },
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "PUB_CACHE": "/home/vscode/.pub-cache"
+  },
+  "mounts": [
+    "source=signal-router-pub-cache,target=/home/vscode/.pub-cache,type=volume"
+  ],
+  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.pub-cache && dart pub get",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Dart-Code.dart-code"
+      ]
+    }
+  }
+}
