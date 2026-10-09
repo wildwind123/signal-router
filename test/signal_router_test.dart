@@ -116,6 +116,82 @@ void main() {
     });
   });
 
+  group('query encoding', () {
+    RouteInfo roundTrip(Map<String, String> query) {
+      final sr = newRouter();
+      sr.pushPage(RouteTmplPath.page1, RouteData(query: query));
+      return sr.slcRoute();
+    }
+
+    test('simple values produce the same URL as before', () {
+      final sr = newRouter();
+      sr.pushPage(RouteTmplPath.page1, RouteData(query: {"page": "2"}));
+      expect(sr.slvRouteRaw(), "/root/page1/?page=2");
+    });
+
+    test('value with ampersand', () {
+      final sr = newRouter();
+      sr.pushPage(RouteTmplPath.page1, RouteData(query: {"q": "x&y"}));
+      expect(sr.slvRouteRaw(), "/root/page1/?q=x%26y");
+      expect(sr.slcRoute().data.query, {"q": "x&y"});
+    });
+
+    test('value with equals sign', () {
+      expect(roundTrip({"q": "a=b"}).data.query, {"q": "a=b"});
+    });
+
+    test('value with slash keeps route intact', () {
+      final r = roundTrip({"q": "a/b/c"});
+      expect(r.route, RouteTmplPath.page1);
+      expect(r.data.query, {"q": "a/b/c"});
+    });
+
+    test('value with question mark, plus, space, hash and percent', () {
+      const v = "a?b+c d#e%f";
+      expect(getQueryString(roundTrip({"q": v}), "q"), v);
+    });
+
+    test('value with unicode', () {
+      expect(getQueryString(roundTrip({"q": "привет 日本"}), "q"), "привет 日本");
+    });
+
+    test('key with reserved characters', () {
+      expect(roundTrip({"a&b=c": "1"}).data.query, {"a&b=c": "1"});
+    });
+
+    test('empty value', () {
+      expect(roundTrip({"q": ""}).data.query, {"q": ""});
+    });
+
+    test('item without "=" gives empty value instead of crashing', () {
+      expect(parseRoute("/root/?flag&a=1").data.query, {"flag": "", "a": "1"});
+    });
+
+    test('hand-written value split at first "=" only', () {
+      expect(parseRoute("/root/?q=a=b").data.query, {"q": "a=b"});
+    });
+
+    test('invalid percent encoding is kept as is', () {
+      expect(getQueryString(parseRoute("/root/?q=50%zz"), "q"), "50%zz");
+    });
+
+    test('popPage restores encoded query', () {
+      final sr = newRouter();
+      sr.pushPage(RouteTmplPath.page1, RouteData(query: {"q": "x&y=z/w"}));
+      sr.pushPage(RouteTmplPath.page2, RouteData());
+      sr.popPage();
+      expect(getQueryString(sr.slcRoute(), "q"), "x&y=z/w");
+      expect(sr.routerHistory.last, sr.slvRouteRaw());
+    });
+
+    test('getStackPages ignores encoded query', () {
+      final sr = newRouter();
+      sr.pushPage(RouteTmplPath.page1, RouteData(query: {"q": "a/b"}));
+      expect(sr.getStackPages(routers: routes),
+          ["fakePage_root", "fakePage_page1"]);
+    });
+  });
+
   group('splitCustom', () {
     test('three or fewer parts are returned as is', () {
       expect(splitCustom("p___id___5"), ["p", "id", "5"]);

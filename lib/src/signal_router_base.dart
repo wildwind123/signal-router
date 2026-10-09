@@ -63,7 +63,8 @@ class SignalRouter<T> {
       var q = "";
       var i = 0;
       for (String key in routeData.query!.keys) {
-        var v = "$key=${routeData.query![key]}";
+        var v = "${Uri.encodeQueryComponent(key)}="
+            "${Uri.encodeQueryComponent(routeData.query![key]!)}";
         if (i == 0) {
           q = v;
         } else {
@@ -195,9 +196,11 @@ RouteInfo parseRoute(String rawRoute) {
       var q = v[x].replaceRange(0, 1, '');
       var qList = q.split("&").where((part) => part.isNotEmpty).toList();
       for (var s = 0; s < qList.length; s++) {
-        var sp = qList[s].split("=");
+        var eq = qList[s].indexOf("=");
+        var key = eq == -1 ? qList[s] : qList[s].substring(0, eq);
+        var value = eq == -1 ? "" : qList[s].substring(eq + 1);
         rI.data.query ??= {};
-        rI.data.query![sp[0]] = sp[1];
+        rI.data.query![_decodeQuery(key)] = _decodeQuery(value);
       }
       break;
     }
@@ -210,6 +213,16 @@ RouteInfo parseRoute(String rawRoute) {
 
   rI.route = currentRoute;
   return rI;
+}
+
+/// Decodes a query key or value, returning it unchanged when it is not
+/// valid encoding (for example a hand-written route containing a raw "%").
+String _decodeQuery(String value) {
+  try {
+    return Uri.decodeQueryComponent(value);
+  } catch (_) {
+    return value;
+  }
 }
 
 List<String> splitCustom(String text) {
