@@ -1,3 +1,36 @@
+## 1.0.0-alpha.3
+
+### Behavior changes
+
+- `RouterHistoryKeepSame(count: n)` now keeps the **newest** `n` entries of a
+  repeated route. Before, it kept the first entry of the run and replaced only
+  the most recent one (with `count: 2`, pushing 1, 2, 3, 4 kept `[1, 4]`; it
+  now keeps `[3, 4]`). `count: 1` is unchanged.
+- `RouterHistoryKeepSame.query` conditions now also apply to the history
+  entries being trimmed, not only to the route being pushed.
+- `getParamInt` returns `0` for a non-integer value instead of throwing,
+  matching `getQueryInt`. `getQueryCacheInt` no longer throws either.
+- `parseRoute` keeps a param segment that has no value (`/item/p___id/`) in
+  the route instead of dropping it, and no longer loses the leading slash when
+  such a segment comes first.
+- Effects run once per `pushPage` / `popPage`, after the route and history
+  are both updated (navigation is batched).
+
+### Features
+
+- `rawRoute` and `route` replace `slvRouteRaw` and `slcRoute`. The old names
+  still work and are deprecated.
+- `canPop`: a computed signal telling whether `popPage` goes back or calls
+  `exitApp`.
+- `RouteData.navigationType` (`NavigationType.push` or `.pop`) lets hooks tell
+  a push from a pop.
+
+### Other
+
+- `getQueryInt` no longer prints to the console.
+- `RouteData.withoutChangeRoute` is deprecated; it was never used.
+- Rewrite the README to match the actual API, and add a runnable example.
+
 ## 1.0.0-alpha.2
 
 ### Breaking changes
