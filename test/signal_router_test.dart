@@ -120,20 +120,20 @@ void main() {
     RouteInfo roundTrip(Map<String, String> query) {
       final sr = newRouter();
       sr.pushPage(RouteTmplPath.page1, RouteData(query: query));
-      return sr.slcRoute();
+      return sr.route();
     }
 
     test('simple values produce the same URL as before', () {
       final sr = newRouter();
       sr.pushPage(RouteTmplPath.page1, RouteData(query: {"page": "2"}));
-      expect(sr.slvRouteRaw(), "/root/page1/?page=2");
+      expect(sr.rawRoute(), "/root/page1/?page=2");
     });
 
     test('value with ampersand', () {
       final sr = newRouter();
       sr.pushPage(RouteTmplPath.page1, RouteData(query: {"q": "x&y"}));
-      expect(sr.slvRouteRaw(), "/root/page1/?q=x%26y");
-      expect(sr.slcRoute().data.query, {"q": "x&y"});
+      expect(sr.rawRoute(), "/root/page1/?q=x%26y");
+      expect(sr.route().data.query, {"q": "x&y"});
     });
 
     test('value with equals sign', () {
@@ -180,8 +180,8 @@ void main() {
       sr.pushPage(RouteTmplPath.page1, RouteData(query: {"q": "x&y=z/w"}));
       sr.pushPage(RouteTmplPath.page2, RouteData());
       sr.popPage();
-      expect(getQueryString(sr.slcRoute(), "q"), "x&y=z/w");
-      expect(sr.routerHistory.last, sr.slvRouteRaw());
+      expect(getQueryString(sr.route(), "q"), "x&y=z/w");
+      expect(sr.routerHistory.last, sr.rawRoute());
     });
 
     test('getStackPages ignores encoded query', () {
@@ -189,6 +189,25 @@ void main() {
       sr.pushPage(RouteTmplPath.page1, RouteData(query: {"q": "a/b"}));
       expect(sr.getStackPages(routers: routes),
           ["fakePage_root", "fakePage_page1"]);
+    });
+  });
+
+  group('parseRoute templates', () {
+    test('param segment without value is kept in the route', () {
+      final r = parseRoute(RouteTmplPath.item);
+      expect(r.route, RouteTmplPath.item);
+      expect(r.data.params, isNull);
+    });
+
+    test('param template as first segment keeps leading slash', () {
+      expect(parseRoute("/p___id/child/").route, "/p___id/child/");
+      expect(parseRoute("/p___id___1/child/").route, "/p___id/child/");
+    });
+
+    test('pushing a template without params keeps it matchable', () {
+      final sr = newRouter();
+      sr.pushPage(RouteTmplPath.item, RouteData());
+      expect(sr.route().route, RouteTmplPath.item);
     });
   });
 
@@ -207,8 +226,8 @@ void main() {
   group('SignalRouter initial state', () {
     test('route starts at mainPath with empty history', () {
       final sr = newRouter(mainPath: RouteTmplPath.page2);
-      expect(sr.slvRouteRaw(), RouteTmplPath.page2);
-      expect(sr.slcRoute().route, RouteTmplPath.page2);
+      expect(sr.rawRoute(), RouteTmplPath.page2);
+      expect(sr.route().route, RouteTmplPath.page2);
       expect(sr.routerHistory, isEmpty);
     });
   });
@@ -217,24 +236,24 @@ void main() {
     test('plain route updates signal and history', () {
       final sr = newRouter();
       sr.pushPage(RouteTmplPath.page1, RouteData());
-      expect(sr.slvRouteRaw(), RouteTmplPath.page1);
-      expect(sr.slcRoute().route, RouteTmplPath.page1);
+      expect(sr.rawRoute(), RouteTmplPath.page1);
+      expect(sr.route().route, RouteTmplPath.page1);
       expect(sr.routerHistory, [RouteTmplPath.page1]);
     });
 
     test('params are substituted into the template', () {
       final sr = newRouter();
       sr.pushPage(RouteTmplPath.item, RouteData(params: {"id": "5"}));
-      expect(sr.slvRouteRaw(), "/root/item/p___id___5/");
-      expect(sr.slcRoute().route, RouteTmplPath.item);
-      expect(getParamInt(sr.slcRoute(), "id"), 5);
+      expect(sr.rawRoute(), "/root/item/p___id___5/");
+      expect(sr.route().route, RouteTmplPath.item);
+      expect(getParamInt(sr.route(), "id"), 5);
     });
 
     test('query is appended in insertion order', () {
       final sr = newRouter();
       sr.pushPage(RouteTmplPath.page1, RouteData(query: {"a": "1", "b": "2"}));
-      expect(sr.slvRouteRaw(), "/root/page1/?a=1&b=2");
-      expect(sr.slcRoute().data.query, {"a": "1", "b": "2"});
+      expect(sr.rawRoute(), "/root/page1/?a=1&b=2");
+      expect(sr.route().data.query, {"a": "1", "b": "2"});
     });
 
     test('params and query round-trip through parseRoute', () {
@@ -243,7 +262,7 @@ void main() {
         RouteTmplPath.item,
         RouteData(params: {"id": "9"}, query: {"tab": "x"}),
       );
-      final r = sr.slcRoute();
+      final r = sr.route();
       expect(r.route, RouteTmplPath.item);
       expect(r.data.params, {"id": "9"});
       expect(r.data.query, {"tab": "x"});
@@ -252,7 +271,7 @@ void main() {
     test('writeOnHistory false does not record history', () {
       final sr = newRouter();
       sr.pushPage(RouteTmplPath.page1, RouteData(writeOnHistory: false));
-      expect(sr.slvRouteRaw(), RouteTmplPath.page1);
+      expect(sr.rawRoute(), RouteTmplPath.page1);
       expect(sr.routerHistory, isEmpty);
     });
 
@@ -280,7 +299,7 @@ void main() {
     test('empty hook list is fine', () {
       final sr = newRouter(hooks: []);
       sr.pushPage(RouteTmplPath.page1, RouteData());
-      expect(sr.slvRouteRaw(), RouteTmplPath.page1);
+      expect(sr.rawRoute(), RouteTmplPath.page1);
     });
   });
 
@@ -290,7 +309,7 @@ void main() {
       sr.pushPage(RouteTmplPath.page1, RouteData());
       sr.pushPage(RouteTmplPath.page2, RouteData());
       sr.popPage();
-      expect(sr.slvRouteRaw(), RouteTmplPath.page1);
+      expect(sr.rawRoute(), RouteTmplPath.page1);
       expect(sr.routerHistory, [RouteTmplPath.page1]);
     });
 
@@ -298,7 +317,7 @@ void main() {
       final sr = newRouter(mainPath: RouteTmplPath.root);
       sr.pushPage(RouteTmplPath.page1, RouteData());
       sr.popPage();
-      expect(sr.slvRouteRaw(), RouteTmplPath.root);
+      expect(sr.rawRoute(), RouteTmplPath.root);
       expect(sr.routerHistory, isEmpty);
     });
 
@@ -308,7 +327,7 @@ void main() {
       sr.pushPage(RouteTmplPath.page1, RouteData(writeOnHistory: false));
       sr.popPage();
       expect(exited, 1);
-      expect(sr.slvRouteRaw(), RouteTmplPath.page1);
+      expect(sr.rawRoute(), RouteTmplPath.page1);
     });
 
     test('full back navigation ends with exitApp', () {
@@ -318,9 +337,9 @@ void main() {
       sr.pushPage(RouteTmplPath.page2, RouteData());
 
       sr.popPage();
-      expect(sr.slvRouteRaw(), RouteTmplPath.page1);
+      expect(sr.rawRoute(), RouteTmplPath.page1);
       sr.popPage();
-      expect(sr.slvRouteRaw(), RouteTmplPath.root);
+      expect(sr.rawRoute(), RouteTmplPath.root);
       expect(exited, 0);
       sr.popPage();
       expect(exited, 1);
@@ -334,9 +353,9 @@ void main() {
       );
       sr.pushPage(RouteTmplPath.page2, RouteData());
       sr.popPage();
-      expect(sr.slvRouteRaw(), "/root/item/p___id___1/?tab=a");
-      expect(getParamInt(sr.slcRoute(), "id"), 1);
-      expect(getQueryString(sr.slcRoute(), "tab"), "a");
+      expect(sr.rawRoute(), "/root/item/p___id___1/?tab=a");
+      expect(getParamInt(sr.route(), "id"), 1);
+      expect(getQueryString(sr.route(), "tab"), "a");
     });
 
     test('triggers hooks with writeOnHistory false', () {
@@ -378,9 +397,7 @@ void main() {
       ]);
     });
 
-    // Entries are removed from the end, so the first entry of the run
-    // is kept and only the most recent one is replaced.
-    test('count 2 keeps the first and the newest entry', () {
+    test('count 2 keeps the newest two entries', () {
       final sr = newRouter();
       sr.pushPage(RouteTmplPath.page1, RouteData());
       for (final id in ["1", "2", "3", "4"]) {
@@ -388,9 +405,30 @@ void main() {
       }
       expect(sr.routerHistory, [
         RouteTmplPath.page1,
-        "/root/item/p___id___1/",
+        "/root/item/p___id___3/",
         "/root/item/p___id___4/",
       ]);
+    });
+
+    test('count 3 keeps the newest three entries', () {
+      final sr = newRouter();
+      for (final id in ["1", "2", "3", "4", "5"]) {
+        sr.pushPage(RouteTmplPath.item, itemData(id, count: 3));
+      }
+      expect(sr.routerHistory, [
+        "/root/item/p___id___3/",
+        "/root/item/p___id___4/",
+        "/root/item/p___id___5/",
+      ]);
+    });
+
+    test('popPage after trimming goes to the previous kept entry', () {
+      final sr = newRouter();
+      for (final id in ["1", "2", "3"]) {
+        sr.pushPage(RouteTmplPath.item, itemData(id, count: 2));
+      }
+      sr.popPage();
+      expect(getParamInt(sr.route(), "id"), 2);
     });
 
     test('count 0 disables collapsing', () {
@@ -460,6 +498,160 @@ void main() {
               query: {"tab": "a", "n": "2"}, routerHistoryKeepSame: keep));
       expect(sr.routerHistory, ["/root/page1/?tab=a&n=2"]);
     });
+
+    test('query condition is checked on history entries too', () {
+      final sr = newRouter();
+      final keep = RouterHistoryKeepSame(count: 1, query: {"tab": null});
+      // Pushed without the "tab" key, so it must not be trimmed later.
+      sr.pushPage(RouteTmplPath.page1, RouteData(query: {"n": "1"}));
+      sr.pushPage(RouteTmplPath.page1,
+          RouteData(query: {"tab": "a"}, routerHistoryKeepSame: keep));
+      sr.pushPage(RouteTmplPath.page1,
+          RouteData(query: {"tab": "b"}, routerHistoryKeepSame: keep));
+      expect(sr.routerHistory, [
+        "/root/page1/?n=1",
+        "/root/page1/?tab=b",
+      ]);
+    });
+
+    test('query value condition is checked on history entries too', () {
+      final sr = newRouter();
+      final keep = RouterHistoryKeepSame(count: 1, query: {"tab": "a"});
+      sr.pushPage(RouteTmplPath.page1, RouteData(query: {"tab": "b"}));
+      sr.pushPage(
+          RouteTmplPath.page1,
+          RouteData(
+              query: {"tab": "a", "n": "1"}, routerHistoryKeepSame: keep));
+      sr.pushPage(
+          RouteTmplPath.page1,
+          RouteData(
+              query: {"tab": "a", "n": "2"}, routerHistoryKeepSame: keep));
+      expect(sr.routerHistory, [
+        "/root/page1/?tab=b",
+        "/root/page1/?tab=a&n=2",
+      ]);
+    });
+  });
+
+  group('navigationType', () {
+    test('pushPage reports push', () {
+      final types = <NavigationType>[];
+      final sr = newRouter(hooks: [(_, d, __) => types.add(d.navigationType)]);
+      sr.pushPage(RouteTmplPath.page1, RouteData());
+      expect(types, [NavigationType.push]);
+    });
+
+    test('popPage reports pop, including the pop to mainPath', () {
+      final types = <NavigationType>[];
+      final sr = newRouter(hooks: [(_, d, __) => types.add(d.navigationType)]);
+      sr.pushPage(RouteTmplPath.page1, RouteData());
+      sr.pushPage(RouteTmplPath.page2, RouteData());
+      sr.popPage();
+      sr.popPage();
+      expect(types, [
+        NavigationType.push,
+        NavigationType.push,
+        NavigationType.pop,
+        NavigationType.pop,
+      ]);
+    });
+  });
+
+  group('canPop', () {
+    test('false initially, true after push', () {
+      final sr = newRouter();
+      expect(sr.canPop(), isFalse);
+      sr.pushPage(RouteTmplPath.page1, RouteData());
+      expect(sr.canPop(), isTrue);
+    });
+
+    test('false after popping back to mainPath', () {
+      final sr = newRouter();
+      sr.pushPage(RouteTmplPath.page1, RouteData());
+      sr.popPage();
+      expect(sr.canPop(), isFalse);
+    });
+
+    test('push without history leaves it false', () {
+      final sr = newRouter();
+      sr.pushPage(RouteTmplPath.page1, RouteData(writeOnHistory: false));
+      expect(sr.canPop(), isFalse);
+    });
+
+    test('effect re-runs when history changes', () {
+      final sr = newRouter();
+      final seen = <bool>[];
+      final stop = sl.effect(() {
+        seen.add(sr.canPop());
+      });
+      sr.pushPage(RouteTmplPath.page1, RouteData());
+      sr.pushPage(RouteTmplPath.page2, RouteData());
+      sr.popPage();
+      sr.popPage();
+      stop();
+      expect(seen, [false, true, false]);
+    });
+
+    test('updates even when the same raw route is pushed again', () {
+      final sr = newRouter(mainPath: RouteTmplPath.page1);
+      sr.pushPage(RouteTmplPath.page1, RouteData());
+      expect(sr.canPop(), isTrue);
+      sr.popPage();
+      expect(sr.canPop(), isFalse);
+    });
+  });
+
+  group('batching', () {
+    test('effect reading route and canPop runs once per navigation', () {
+      final sr = newRouter();
+      final seen = <String>[];
+      final stop = sl.effect(() {
+        seen.add("${sr.route().route} ${sr.canPop()}");
+      });
+      sr.pushPage(RouteTmplPath.page1, RouteData());
+      sr.pushPage(RouteTmplPath.page2, RouteData());
+      sr.popPage();
+      sr.popPage();
+      stop();
+      expect(seen, [
+        "${RouteTmplPath.root} false",
+        "${RouteTmplPath.page1} true",
+        "${RouteTmplPath.page2} true",
+        "${RouteTmplPath.page1} true",
+        "${RouteTmplPath.root} false",
+      ]);
+    });
+
+    test('hooks can read the new route during the batch', () {
+      final seen = <String>[];
+      late SignalRouter<String> sr;
+      sr = newRouter(hooks: [(_, __, ___) => seen.add(sr.route().route)]);
+      sr.pushPage(RouteTmplPath.page1, RouteData());
+      expect(seen, [RouteTmplPath.page1]);
+    });
+
+    test('an exception in a hook does not leave a batch open', () {
+      final sr = newRouter(hooks: [(_, __, ___) => throw StateError("x")]);
+      expect(() => sr.pushPage(RouteTmplPath.page1, RouteData()),
+          throwsStateError);
+      final seen = <String>[];
+      final stop = sl.effect(() {
+        seen.add(sr.route().route);
+      });
+      sr.rawRoute.set(RouteTmplPath.page2);
+      stop();
+      expect(seen, [RouteTmplPath.page1, RouteTmplPath.page2]);
+    });
+  });
+
+  group('deprecated aliases', () {
+    test('slvRouteRaw and slcRoute point to rawRoute and route', () {
+      final sr = newRouter();
+      // ignore: deprecated_member_use_from_same_package
+      expect(identical(sr.slvRouteRaw, sr.rawRoute), isTrue);
+      // ignore: deprecated_member_use_from_same_package
+      expect(identical(sr.slcRoute, sr.route), isTrue);
+    });
   });
 
   group('reactivity', () {
@@ -467,7 +659,7 @@ void main() {
       final sr = newRouter();
       final seen = <String>[];
       final stop = sl.effect(() {
-        seen.add(sr.slcRoute().route);
+        seen.add(sr.route().route);
       });
 
       sr.pushPage(RouteTmplPath.page1, RouteData());
@@ -539,8 +731,8 @@ void main() {
       expect(getParamInt(null, "id"), 0);
     });
 
-    test('getParamInt throws on non-integer value', () {
-      expect(() => getParamInt(r, "name"), throwsFormatException);
+    test('getParamInt returns 0 on non-integer value', () {
+      expect(getParamInt(r, "name"), 0);
     });
   });
 

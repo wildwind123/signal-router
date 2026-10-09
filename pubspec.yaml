@@ -2,7 +2,7 @@ name: signal_router
 description: A lightweight, signal-based routing library. Alpha version.
 homepage: https://github.com/wildwind123/signal-router
 repository: https://github.com/wildwind123/signal-router 
-version: 1.0.0-alpha.2
+version: 1.0.0-alpha.3
 
 environment:
   sdk: ^3.0.0
