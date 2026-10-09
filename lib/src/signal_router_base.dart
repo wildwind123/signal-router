@@ -49,7 +49,7 @@ class SignalRouter<T> {
     return parseRoute(slvRouteRaw());
   });
 
-  final routerHistory = sl.signal<List<String>>([]);
+  final List<String> routerHistory = [];
 
   void pushPage(String routePath, RouteData routeData) {
     var nV = routePath;
@@ -63,7 +63,8 @@ class SignalRouter<T> {
       var q = "";
       var i = 0;
       for (String key in routeData.query!.keys) {
-        var v = "$key=${routeData.query![key]}";
+        var v = "${Uri.encodeQueryComponent(key)}="
+            "${Uri.encodeQueryComponent(routeData.query![key]!)}";
         if (i == 0) {
           q = v;
         } else {
@@ -74,7 +75,7 @@ class SignalRouter<T> {
       nV = "$nV?$q";
     }
 
-    slvRouteRaw(nV);
+    slvRouteRaw.set(nV);
     // print("-----------push route $nV");
     if (pushPageHooks != null && pushPageHooks!.isNotEmpty) {
       for (var i = 0; i < pushPageHooks!.length; i++) {
@@ -84,7 +85,7 @@ class SignalRouter<T> {
 
     if (routeData.writeOnHistory == null || routeData.writeOnHistory!) {
       handleRouterHistoryKeepSame(routePath, routeData);
-      routerHistory().add(slvRouteRaw());
+      routerHistory.add(slvRouteRaw());
     }
   }
 
@@ -94,8 +95,8 @@ class SignalRouter<T> {
       var deleteLast = 0;
 
       outerloop:
-      for (var x = routerHistory().length - 1; x >= 0; x--) {
-        var pR = parseRoute(routerHistory()[x]);
+      for (var x = routerHistory.length - 1; x >= 0; x--) {
+        var pR = parseRoute(routerHistory[x]);
         if (pR.route != routePath) {
           break outerloop;
         }
@@ -121,8 +122,8 @@ class SignalRouter<T> {
         var delCount = deleteLast - routeData.routerHistoryKeepSame!.count + 1;
         if (delCount > 0) {
           for (var x = 0; x < delCount; x++) {
-            if (routerHistory().isNotEmpty) {
-              routerHistory().removeLast();
+            if (routerHistory.isNotEmpty) {
+              routerHistory.removeLast();
             }
           }
         }
@@ -132,29 +133,28 @@ class SignalRouter<T> {
 
   void popPage() {
     var p = "";
-    if (routerHistory().length == 1) {
+    if (routerHistory.length == 1) {
       p = mainPath;
-      routerHistory().removeLast();
-    } else if (routerHistory().isEmpty) {
+      routerHistory.removeLast();
+    } else if (routerHistory.isEmpty) {
       exitApp();
       return;
     } else {
-      routerHistory().removeLast();
-      p = routerHistory().last;
+      routerHistory.removeLast();
+      p = routerHistory.last;
     }
     var pRoute = parseRoute(p);
     pRoute.data.writeOnHistory = false;
     pushPage(pRoute.route, pRoute.data);
   }
 
-  List<T> getStackPages(Map<String, T> routers) {
+  List<T> getStackPages(
+      {required Map<String, T> routers,
+      bool Function(String pathTmpl)? includePathTmpl}) {
     List<T> list = [];
     // Split the path and remove empty elements
-    List<String> parts = slcRoute()
-            .route
-            .split("/")
-            .where((part) => part.isNotEmpty)
-            .toList();
+    List<String> parts =
+        slcRoute().route.split("/").where((part) => part.isNotEmpty).toList();
 
     // Build cumulative paths
     List<String> result = [];
@@ -166,13 +166,15 @@ class SignalRouter<T> {
 
     for (var i = 0; i < result.length; i++) {
       if (routers.containsKey(result[i])) {
-        list.add(routers[result[i]]!);
+        if (includePathTmpl != null && !includePathTmpl(result[i])) {
+          continue;
+        }
+        list.add(routers[result[i]] as T);
       }
     }
     return list;
   }
 }
-
 
 RouteInfo parseRoute(String rawRoute) {
   var rI = RouteInfo();
@@ -194,9 +196,11 @@ RouteInfo parseRoute(String rawRoute) {
       var q = v[x].replaceRange(0, 1, '');
       var qList = q.split("&").where((part) => part.isNotEmpty).toList();
       for (var s = 0; s < qList.length; s++) {
-        var sp = qList[s].split("=");
+        var eq = qList[s].indexOf("=");
+        var key = eq == -1 ? qList[s] : qList[s].substring(0, eq);
+        var value = eq == -1 ? "" : qList[s].substring(eq + 1);
         rI.data.query ??= {};
-        rI.data.query![sp[0]] = sp[1];
+        rI.data.query![_decodeQuery(key)] = _decodeQuery(value);
       }
       break;
     }
@@ -209,6 +213,16 @@ RouteInfo parseRoute(String rawRoute) {
 
   rI.route = currentRoute;
   return rI;
+}
+
+/// Decodes a query key or value, returning it unchanged when it is not
+/// valid encoding (for example a hand-written route containing a raw "%").
+String _decodeQuery(String value) {
+  try {
+    return Uri.decodeQueryComponent(value);
+  } catch (_) {
+    return value;
+  }
 }
 
 List<String> splitCustom(String text) {
@@ -228,7 +242,7 @@ List<String> splitCustom(String text) {
   ];
 }
 
-String getParamsString(RouteInfo? routeInfo, String paramName) {
+String getParamString(RouteInfo? routeInfo, String paramName) {
   if (routeInfo?.data.params == null ||
       !routeInfo!.data.params!.containsKey(paramName)) {
     return "";
@@ -237,8 +251,8 @@ String getParamsString(RouteInfo? routeInfo, String paramName) {
   return routeInfo.data.params![paramName]!;
 }
 
-int getParamsInt(RouteInfo? routeInfo, String paramName) {
-  var v = getParamsString(routeInfo, paramName);
+int getParamInt(RouteInfo? routeInfo, String paramName) {
+  var v = getParamString(routeInfo, paramName);
   if (v == "") {
     return 0;
   }

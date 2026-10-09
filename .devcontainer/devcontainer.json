@@ -1,0 +1,35 @@
+{
+  "name": "signal_router",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "username": "vscode",
+      "installZsh": false
+    }
+  },
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "PUB_CACHE": "/home/vscode/.pub-cache",
+    "HTTP_PROXY": "${localEnv:VPN_DOCKER_HTTP_PROXY}",
+    "HTTPS_PROXY": "${localEnv:VPN_DOCKER_HTTP_PROXY}",
+    "NO_PROXY": "localhost,127.0.0.1",
+    "http_proxy": "${localEnv:VPN_DOCKER_HTTP_PROXY}",
+    "https_proxy": "${localEnv:VPN_DOCKER_HTTP_PROXY}",
+    "no_proxy": "localhost,127.0.0.1"
+  },
+  "mounts": [
+    "source=signal-router-pub-cache,target=/home/vscode/.pub-cache,type=volume",
+    "source=${localEnv:HOME}/.devcontainer/shared/claude,target=/home/vscode/.claude,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.pub-cache && dart pub get",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "Dart-Code.dart-code",
+        "anthropic.claude-code"
+      ]
+    }
+  }
+}
